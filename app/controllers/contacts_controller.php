@@ -4,7 +4,7 @@ class ContactsController extends AppController {
 	var $name = 'Contacts';
 	var $scaffold;
 	function index() {
-	    $this->Contact->recursive = 1;
+	    $this->Contact->recursive = 2;
 	   /* $this->Contact->bindModel(array(
 	    	'belongsTo' =>array(
 	    		'Company' => array(

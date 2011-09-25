@@ -32,7 +32,7 @@ class EavBehavior extends ModelBehavior {
      * The model that is acting as the Entity
      * @var unknown_type
      */
-    var $entityModel = 'User';
+    var $entityModel = array();
     
     /**
      * 
@@ -46,7 +46,7 @@ class EavBehavior extends ModelBehavior {
      * The name of the field in the $attributeModel that holds the data type
      * @var unknown_type
      */
-    var $dataTypeFieldName = 'type';
+    var $dataTypeFieldName = 'data_type';
     /**
      * 
      * Maps data types to the Model
@@ -68,6 +68,23 @@ class EavBehavior extends ModelBehavior {
     );
     
     /**
+     * 
+     * Virtual Keys use a HABTM relationship to build a relationship between the entity and another model
+     * using an attribute table as a join table. Attribute names must meet naming conventions. This is still EXPERIMENTAL.
+     * Array Format:
+     * array(
+     *     'uuid' = array(
+     *         'Company',
+     *         'OtherModelWithUuidPrimaryKey'),
+     *     'key' = array(
+     *         'State', 
+     *         'OtherModelWithIntPrimaryKey')
+     * )
+     * @var unknown_type
+     */
+    var $virtualKeys = array();
+    
+    /**
      * The EAV Behavior can use various forms of virtualFields
      * Options:
      * 1. cake - Use CakePHP's virtualFields
@@ -77,7 +94,7 @@ class EavBehavior extends ModelBehavior {
      * 
      * @var unknown_type
      */
-    var $virtualFieldType = 'cake';
+    var $virtualFieldType = false;
     
 /**
  * Sets up the configuation for the model, and loads the models if they haven't been already
@@ -87,8 +104,14 @@ class EavBehavior extends ModelBehavior {
  * @access public
  */
 	function setup(&$model, $config = array()) {
+	    //If the $config is a string, set it to the type. Otherwise set the config vars.
 		if (is_string($config)) {
 			$config = array('type' => $config);
+		} else {
+		   foreach ($config as $key => $value) {
+		       $this->$key = $value;
+		       
+		   }
 		}
 		$this->settings[$model->name] = array_merge(array('type' => 'entity'), (array)$config);
 		$this->settings[$model->name]['type'] = strtolower($this->settings[$model->name]['type']);
@@ -99,36 +122,80 @@ class EavBehavior extends ModelBehavior {
 		    $this->entityModel = $model;
 		    $hasAndBelongsToMany = array();
 		    foreach($this->valueModels as $dataType => $dataModel) {
-		        $alias = 'Attributes' . Inflector::camelize($dataType);
-		        $table = 'attributes_' . $dataType . '_values';
-		        $hasAndBelongsToMany = array(
-		        	$alias => array(
-		                'className' => 'Attribute',
-		                //'joinTable' => $table,
-		        	    'with' => 'Attributes'. Inflector::camelize($dataType) . 'Value',
-		                'foreignKey' => 'entity_id',
-		                'associationKey' => 'attribute_id'
-		                ));
-		                $alias = Inflector::singularize(Inflector::camelize($table));
-		                $hasMany = array(
-		        	$alias => array(
-		                'className' => 'AppModel',
-		                'foreignKey' => 'entity_id',
-		        	));
-		                if (PHP5) {
-        			//ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => 'Attributes'. Inflector::camelize($dataType) . 'Value'));
-        			$this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
-		                } else {
-        			$this->entityModel->$alias =& ClassRegistry::init(array('class' => 'Attribute','table' => $table,'alias' => $alias));
-        		}
-                //$this->entityModel->hasAndBelongsToMany = array_merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
-                $this->entityModel->hasMany = array_merge($this->entityModel->hasMany,$hasMany);
+		        //if (($dataType != 'key') && ($dataType != 'uuid')) {
+    		        //$alias = 'Attributes' . Inflector::camelize($dataType);
+    		        $table = 'attributes_' . $dataType . '_values';
+    		        $alias = Inflector::singularize(Inflector::camelize($table));
+    		        $hasMany = array(
+    		        	$alias => array(
+    		                'className' => 'AppModel',
+    		                'foreignKey' => 'entity_id',
+    		        	));
+                    $this->entityModel->hasMany = array_merge($this->entityModel->hasMany,$hasMany);
+    		        	//$this->entityModel->$alias->belongsTo = array('Attribute' => array('className' => 'Attribute'));
+                    if (PHP5) {
+            			//ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => 'Attributes'. Inflector::camelize($dataType) . 'Value'));
+            			$this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
+            			$this->entityModel->$alias->Attribute = ClassRegistry::init('Attribute');
+    		        	$this->entityModel->$alias->belongsTo = array('Attribute' => array('className' => 'Attribute','foreignKey' => 'attribute_id'));
+            			//debug($this->entityModel->$alias->Attribute);
+                    } else {
+            			$this->entityModel->$alias =& ClassRegistry::init(array('class' => 'Attribute','table' => $table,'alias' => $alias));
+            		}
+		        //}
+		    }
+    		if (isset($this->settings[$model->name]['virtualKeys']['uuid'])) {
+    		    foreach ($this->settings[$model->name]['virtualKeys']['uuid'] as $virtualModel) {
+    		        $hasAndBelongsToMany[$virtualModel]  = array(
+                		'className' => $virtualModel,
+                		'foreignKey' => 'entity_id',
+                		'associationForeignKey' => 'value',
+                	        'with' => 'AttributesUuidValue',
+    		                'joinTable' => 'attributes_uuid_values'
+            	    );
+            	$belongsTo = array(
+		        	$virtualModel => array(
+		                'className' => $virtualModel,
+		                'foreignKey' => 'value',
+		            )
+		        );
+            	    
+            	   // ClassRegistry::init($virtualModel);
+            	//$this->entityModel->AttributesUuidValue = ClassRegistry::init(array('class' => 'AppModel', 'table' => 'attributes_uuid_values','alias' => 'AttributesUuidValue'));
+            	   $leftModel = $model;
+    		    //$this->entityModel->AttributesUuidValue->belongsTo = Set::merge($this->entityModel->AttributesUuidValue->belongsTo,$belongsTo);
+    		    //$this->$virtualModel = ClassRegistry::init($virtualModel);
+		        $model->bindModel(array('hasAndBelongsToMany' => Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany)));
+		        //$this->entityModel->hasAndBelongsToMany = Set::merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
+		        //$this->entityModel->AttributesUuidValue->bindModel(array('belongsTo' => Set::merge($this->entityModel->AttributesUuidValue->belongsTo,$belongsTo)));
+		        //$this->entityModel->AttributesUuidValue->belongsTo = Set::merge($this->entityModel->AttributesUuidValue->belongsTo,$belongsTo);
+            	    //$this->$virtualModel = ClassRegistry::init(array('class' => $virtualModel, 'table' => $table,'ds' => 'default', 'alias' => $virtualModel));
+    		        //debug($this->entityModel);
+    		    }
+    		}
+    		if (isset($this->virtualKeys['key'])) {
+    		    foreach ($this->virtualKeys['key'] as $virtualModel) {
+    		        $hasAndBelongsToMany[$virtualModel]  = array(
+                		'className' => $virtualModel,
+                		'foreignKey' => 'entity_id',
+                		'associationForeignKey' => 'value',
+                	        'with' => 'AttributesKeyValue',
+            	    );
+    		    }
+    		}
+        		//$this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
+        		//$this->entityModel->hasAndBelongsToMany->bindModel( = array_merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
+        		//$this->entityModel->hasAndBelongsToMany = array_merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
+        	if ($this->virtualFieldType == false) {
+    		    //Setup model virtual fields.
+                //$this->entityModel->hasMany = array_merge($this->entityModel->hasMany,$hasMany);
 		    }
 		    if ($this->virtualFieldType == 'cake') {
-    		    
     		    //Setup model virtual fields.
+    		    //debug();
     		    $this->entityModel->virtualFields = array_merge($this->entityModel->virtualFields,$this->getVirtualFieldSql($model));
     		}
+    		
     		//debug($this->entityModel);
     		
 		}
