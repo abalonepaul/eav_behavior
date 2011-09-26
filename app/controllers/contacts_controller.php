@@ -12,6 +12,9 @@ class ContactsController extends AppController {
 	                //'foreignKey' => 'AttributesUuidValue.value'
 	                ))));*/
 	    debug($this->Contact->find('all'));
+	    $entity = $this->Contact->find('first',array('fields' => 'id','contain' => false));
+	    //debug($entity['Contact']['id']);
+	    //debug($this->Contact->getAttributeValues($this->Contact,$entity['Contact']['id']));
 	    $this->set('contacts',$this->paginate());
 	}
 	

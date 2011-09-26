@@ -94,7 +94,7 @@ class EavBehavior extends ModelBehavior {
      * 
      * @var unknown_type
      */
-    var $virtualFieldType = 'cake';
+    var $virtualFieldType = 'eav';
     
 /**
  * Sets up the configuation for the model, and loads the models if they haven't been already
@@ -119,7 +119,9 @@ class EavBehavior extends ModelBehavior {
         $type = $config['type'];
 		
 		if ($type == 'entity') {
-		    $this->entityModel = $model;
+		    //if (empty($this->entityModel)) {
+		        $this->entityModel = $model;
+		    //}
 		    $hasAndBelongsToMany = array();
 		    foreach($this->valueModels as $dataType => $dataModel) {
     		        //$alias = 'Attributes' . Inflector::camelize($dataType);
@@ -145,22 +147,10 @@ class EavBehavior extends ModelBehavior {
     		        	//debug($this->entityModel->$alias->Attribute);
 		    }
 		    
-		    //Determine how to bind Associated Models with uuid foreign key
+		    //Determine how to bind Associated Models with uuid foreign key for virtualKeys
     		if (isset($this->settings[$this->entityModel->name]['virtualKeys']['uuid'])) {
     		    foreach ($this->settings[$this->entityModel->name]['virtualKeys']['uuid'] as $virtualModel) {
     		        //debug($this->settings[$model->name]['virtualKeys']['uuid']);
-    		        if ($this->virtualFieldType === false) {
-                    	$belongsTo = array(
-        		        	$virtualModel => array(
-        		                'className' => $virtualModel,
-        		                'foreignKey' => 'value',
-        		            )
-        		        );
-        		        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
-        		        //to the AttributesUuidValue model. 
-            		    $model->AttributesUuidValue->$virtualModel = ClassRegistry::init($virtualModel);
-        		        $model->AttributesUuidValue->bindModel(array('belongsTo' => Set::merge($model->AttributesUuidValue->belongsTo,$belongsTo)));
-    		        }
     		        if ($this->virtualFieldType == 'cake') {
                		    //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
             		    $model->$virtualModel = ClassRegistry::init($virtualModel);
@@ -176,30 +166,48 @@ class EavBehavior extends ModelBehavior {
         		        //debug($this->entityModel);
         		        //debug($model);
         		        
+        	        } else {
+                    	$belongsTo = array(
+        		        	$virtualModel => array(
+        		                'className' => $virtualModel,
+        		                'foreignKey' => 'value',
+        		            )
+        		        );
+        		        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
+        		        //to the AttributesUuidValue model. 
+            		    $model->AttributesUuidValue->$virtualModel = ClassRegistry::init($virtualModel);
+        		        $model->AttributesUuidValue->bindModel(array('belongsTo' => Set::merge($model->AttributesUuidValue->belongsTo,$belongsTo)));
         	        }
-    		        // ClassRegistry::init($virtualModel);
-		        
-                
-                
-		        //$this->entityModel->AttributesUuidValue->belongsTo = Set::merge($this->entityModel->AttributesUuidValue->belongsTo,$belongsTo);
-    		    //$this->entityModel->hasAndBelongsToMany = Set::merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
-		        //$this->$virtualModel = ClassRegistry::init(array('class' => $virtualModel, 'table' => $table,'ds' => 'default', 'alias' => $virtualModel));
-    		        //debug($this->entityModel);
     		    }
     		}
-    		if (isset($this->virtualKeys['key'])) {
-    		    foreach ($this->virtualKeys['key'] as $virtualModel) {
-    		        $hasAndBelongsToMany[$virtualModel]  = array(
-                		'className' => $virtualModel,
-                		'foreignKey' => 'entity_id',
-                		'associationForeignKey' => 'value',
-                	        'with' => 'AttributesKeyValue',
-            	    );
-    		    }
+    		if (isset($this->settings[$this->entityModel->name]['virtualKeys']['key'])) {
+    		    foreach ($this->settings[$this->entityModel->name]['virtualKeys']['key'] as $virtualModel) {
+    		        if ($this->virtualFieldType == 'cake') {
+               		    //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
+            		    $model->$virtualModel = ClassRegistry::init($virtualModel);
+    		            $hasAndBelongsToMany[$virtualModel]  = array(
+                    		'className' => $virtualModel,
+                    		'foreignKey' => 'entity_id',
+                    		'associationForeignKey' => 'value',
+                    	        'with' => 'AttributesKeyValue',
+        		                'joinTable' => 'attributes_key_values'
+                        );
+    		            $model->hasAndBelongsToMany = Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany);
+        		        
+        	        } else {
+                    	$belongsTo = array(
+        		        	$virtualModel => array(
+        		                'className' => $virtualModel,
+        		                'foreignKey' => 'value',
+        		            )
+        		        );
+        		        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
+        		        //to the AttributesUuidValue model. 
+            		    $model->AttributesKeyValue->$virtualModel = ClassRegistry::init($virtualModel);
+        		        $model->AttributesKeyValue->bindModel(array('belongsTo' => Set::merge($model->AttributesKeyValue->belongsTo,$belongsTo)));
+        	        }
+    		            		    }
     		}
-        		//$this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
-        		//$this->entityModel->hasAndBelongsToMany->bindModel( = array_merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
-        		//$this->entityModel->hasAndBelongsToMany = array_merge($this->entityModel->hasAndBelongsToMany,$hasAndBelongsToMany);
 		    if ($this->virtualFieldType == 'cake') {
     		    //Setup model virtual fields.
     		    //debug();
@@ -353,11 +361,23 @@ class EavBehavior extends ModelBehavior {
      * Get all of the Attribute Values for the current or given Entity
      * @param unknown_type $entityId
      */
-    function getAttributeValues($entityId = null) {
-        if ($entityId == null) {
+    function getAttributeValues(&$Model,$entity) {
+        //debug($Model);
+        /*if ($entityId == null) {
             $entityId = $this->entityModel->id;
-        }
-        
+        }*/
+        //debug($Model->name);
+        //$entity = $Model->findById($entityId);
+        //debug($entity);
+	    foreach($this->valueModels as $dataType => $dataModel) {
+	        //debug($dataModel);
+	        //debug($entity[$dataModel]);
+	        foreach($entity[$dataModel] as $attributeData) {
+	        //debug($attributeData);
+	        $attributes[$attributeData['Attribute']['name']] = $attributeData['value'];
+	        }
+	    }
+	    return $attributes;
     }
     
     /**
@@ -524,7 +544,46 @@ class EavBehavior extends ModelBehavior {
  * @access public
  */
 	function afterFind(&$Model, $results) {
-    }
+	            //debug($this->type);
+	    if ($this->virtualFieldType == 'array' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
+	        foreach($results as $key=>$value) {
+	            foreach($this->valueModels as $dataType => $dataModel) {
+        	        foreach($value[$dataModel] as $attributeData) {
+        	            $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
+        	            
+        	        }
+    	        }
+	                $model = $results[$key][$Model->name];
+	                $attributes = $results[$key]['Attributes'];
+        	        unset($results[$key]);
+        	        $results[$key][$Model->name] = $model;
+        	        $results[$key]['Attributes'] =$attributes;
+	        }
+	    }
+	    if ($this->virtualFieldType == 'eav' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
+	        foreach($results as $key=>$value) {
+	            foreach($this->valueModels as $dataType => $dataModel) {
+        	        foreach($value[$dataModel] as $attributeData) {
+        	            $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
+        	            
+        	        }
+    	        }
+	                $model = $results[$key][$Model->name];
+	                $attributes = $results[$key]['Attributes'];
+        	        unset($results[$key]);
+        	        $results[$key][$Model->name] = Set::merge($model,$attributes);
+        	        //$results[$key]['Attributes'] =$attributes;
+	        }
+	        //$Model->$Model->name = Set::merge($Model->$Model->name,$this->getAttributeValues($results['Contact']['id']));
+	        //debug($Model);
+	        //debug($results);
+	        //debug();
+	        
+	    }
+	    //debug($return);
+	    
+	    return $results;
+	}
     
 /**
  * beforeSave Callback
