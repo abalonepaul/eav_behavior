@@ -94,7 +94,7 @@ class EavBehavior extends ModelBehavior {
      * 
      * @var unknown_type
      */
-    var $virtualFieldType = 'eav';
+    var $virtualFieldType = 'array';
     
 /**
  * Sets up the configuation for the model, and loads the models if they haven't been already
@@ -103,241 +103,238 @@ class EavBehavior extends ModelBehavior {
  * @return void
  * @access public
  */
-	function setup(&$model, $config = array()) {
-	    //If the $config is a string, set it to the type. Otherwise set the config vars.
-		if (is_string($config)) {
-			$config = array('type' => $config);
-		} else {
-		   foreach ($config as $key => $value) {
-		       $this->$key = $value;
-		       
-		   }
-		}
-		$this->settings[$model->name] = array_merge(array('type' => 'entity'), (array)$config);
-		$this->settings[$model->name]['type'] = strtolower($this->settings[$model->name]['type']);
-        //debug($this->settings);
+    function setup(&$model, $config = array()) {
+        //If the $config is a string, set it to the type. Otherwise set the config vars.
+        if (is_string($config)) {
+            $config = array('type' => $config);
+        } else {
+           foreach ($config as $key => $value) {
+               $this->$key = $value;
+               
+           }
+        }
+        
+        $this->settings[$model->name] = array_merge(array('type' => 'entity'), (array)$config);
+        $this->settings[$model->name]['type'] = strtolower($this->settings[$model->name]['type']);
         $type = $config['type'];
-		
-		if ($type == 'entity') {
-		    //if (empty($this->entityModel)) {
-		        $this->entityModel = $model;
-		    //}
-		    $hasAndBelongsToMany = array();
-		    foreach($this->valueModels as $dataType => $dataModel) {
-    		        //$alias = 'Attributes' . Inflector::camelize($dataType);
-    		        $table = 'attributes_' . $dataType . '_values';
-    		        $alias = Inflector::singularize(Inflector::camelize($table));
-    		        $hasMany = array(
-    		        	$alias => array(
-    		                'className' => 'AppModel',
-    		                'foreignKey' => 'entity_id',
-    		        	));
-    		        	//$this->entityModel->$alias->belongsTo = array('Attribute' => array('className' => 'Attribute'));
+        
+        if ($type == 'entity') {
+            $this->entityModel = $model;
+            $hasAndBelongsToMany = array();
+            foreach($this->valueModels as $dataType => $dataModel) {
+                    //$alias = 'Attributes' . Inflector::camelize($dataType);
+                    $table = 'attributes_' . $dataType . '_values';
+                    $alias = Inflector::singularize(Inflector::camelize($table));
+                    $hasMany = array(
+                        $alias => array(
+                            'className' => 'AppModel',
+                            'foreignKey' => 'entity_id',
+                        ));
+                        
                     if (PHP5) {
-            			//ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => 'Attributes'. Inflector::camelize($dataType) . 'Value'));
-            			$this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
+                        $this->entityModel->$alias = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
                     } else {
-            			$this->entityModel->$alias =& ClassRegistry::init(array('class' => 'Attribute','table' => $table,'alias' => $alias));
-            		}
-        			$this->entityModel->$alias->Attribute = ClassRegistry::init('Attribute');
-        			if ($this->virtualFieldType != 'cake') {
-    		        	$this->entityModel->$alias->belongsTo = array('Attribute' => array('className' => 'Attribute','foreignKey' => 'attribute_id'));
+                        $this->entityModel->$alias =& ClassRegistry::init(array('class' => 'Attribute','table' => $table,'alias' => $alias));
+                    }
+                    $this->entityModel->$alias->Attribute = ClassRegistry::init('Attribute');
+                    
+                    if ($this->virtualFieldType != 'cake') {
+                        $this->entityModel->$alias->belongsTo = array('Attribute' => array('className' => 'Attribute','foreignKey' => 'attribute_id'));
                         $this->entityModel->hasMany = array_merge($this->entityModel->hasMany,$hasMany);
-        			}
-    		        	//debug($this->entityModel->$alias->Attribute);
-		    }
-		    
-		    //Determine how to bind Associated Models with uuid foreign key for virtualKeys
-    		if (isset($this->settings[$this->entityModel->name]['virtualKeys']['uuid'])) {
-    		    foreach ($this->settings[$this->entityModel->name]['virtualKeys']['uuid'] as $virtualModel) {
-    		        //debug($this->settings[$model->name]['virtualKeys']['uuid']);
-    		        if ($this->virtualFieldType == 'cake') {
-               		    //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
-            		    $model->$virtualModel = ClassRegistry::init($virtualModel);
-    		            $hasAndBelongsToMany[$virtualModel]  = array(
-                    		'className' => $virtualModel,
-                    		'foreignKey' => 'entity_id',
-                    		'associationForeignKey' => 'value',
-                    	        'with' => 'AttributesUuidValue',
-        		                'joinTable' => 'attributes_uuid_values'
+                    }
+            }
+            
+            //Determine how to bind Associated Models with uuid foreign key for virtualKeys
+            if (isset($this->settings[$this->entityModel->name]['virtualKeys']['uuid'])) {
+                foreach ($this->settings[$this->entityModel->name]['virtualKeys']['uuid'] as $virtualModel) {
+                    if ($this->virtualFieldType == 'cake') {
+                        //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
+                        $model->$virtualModel = ClassRegistry::init($virtualModel);
+                        $hasAndBelongsToMany[$virtualModel]  = array(
+                            'className' => $virtualModel,
+                            'foreignKey' => 'entity_id',
+                            'associationForeignKey' => 'value',
+                                'with' => 'AttributesUuidValue',
+                                'joinTable' => 'attributes_uuid_values'
                         );
-        		        //$model->bindModel(array('hasAndBelongsToMany' => Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany)));
-    		            $model->hasAndBelongsToMany = Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany);
-        		        //debug($this->entityModel);
-        		        //debug($model);
-        		        
-        	        } else {
-                    	$belongsTo = array(
-        		        	$virtualModel => array(
-        		                'className' => $virtualModel,
-        		                'foreignKey' => 'value',
-        		            )
-        		        );
-        		        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
-        		        //to the AttributesUuidValue model. 
-            		    $model->AttributesUuidValue->$virtualModel = ClassRegistry::init($virtualModel);
-        		        $model->AttributesUuidValue->bindModel(array('belongsTo' => Set::merge($model->AttributesUuidValue->belongsTo,$belongsTo)));
-        	        }
-    		    }
-    		}
-    		if (isset($this->settings[$this->entityModel->name]['virtualKeys']['key'])) {
-    		    foreach ($this->settings[$this->entityModel->name]['virtualKeys']['key'] as $virtualModel) {
-    		        if ($this->virtualFieldType == 'cake') {
-               		    //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
-            		    $model->$virtualModel = ClassRegistry::init($virtualModel);
-    		            $hasAndBelongsToMany[$virtualModel]  = array(
-                    		'className' => $virtualModel,
-                    		'foreignKey' => 'entity_id',
-                    		'associationForeignKey' => 'value',
-                    	        'with' => 'AttributesKeyValue',
-        		                'joinTable' => 'attributes_key_values'
+                        $model->hasAndBelongsToMany = Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany);
+                    } else {
+                        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
+                        //to the AttributesUuidValue model. 
+                        $belongsTo = array(
+                            $virtualModel => array(
+                                'className' => $virtualModel,
+                                'foreignKey' => 'value',
+                            )
                         );
-    		            $model->hasAndBelongsToMany = Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany);
-        		        
-        	        } else {
-                    	$belongsTo = array(
-        		        	$virtualModel => array(
-        		                'className' => $virtualModel,
-        		                'foreignKey' => 'value',
-        		            )
-        		        );
-        		        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
-        		        //to the AttributesUuidValue model. 
-            		    $model->AttributesKeyValue->$virtualModel = ClassRegistry::init($virtualModel);
-        		        $model->AttributesKeyValue->bindModel(array('belongsTo' => Set::merge($model->AttributesKeyValue->belongsTo,$belongsTo)));
-        	        }
-    		            		    }
-    		}
-		    if ($this->virtualFieldType == 'cake') {
-    		    //Setup model virtual fields.
-    		    //debug();
-    		    $model->virtualFields = array_merge($model->virtualFields,$this->getVirtualFieldSql($model));
-    		}
-    		
-    	//debug($this->entityModel);
-    		
-		}
-	}
-	
-	function setupAttributes() {
-	    $entityId = '4e656b03-8b70-4c3b-a8d0-057c43c9e587';
-	    $this->addAttributeValue('address','123 Main St.',$entityId);
-	    $this->addAttributeValue('city','San Rafael',$entityId);
-	    $this->addAttributeValue('zip','94901',$entityId);
-	    $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
-	    $this->addAttributeValue('notes','This is a note',$entityId);
-	    $this->addAttributeValue('admin',1,$entityId);
-	    $entityId = '4e656b23-cef8-4f46-ad8e-057d43c9e587';
-	    $this->addAttributeValue('address','456 Main St.',$entityId);
-	    $this->addAttributeValue('city','San Mateo',$entityId);
-	    $this->addAttributeValue('zip','94951',$entityId);
-	    $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
-	    $this->addAttributeValue('notes','This is another note',$entityId);
-	    $this->addAttributeValue('admin',0,$entityId);
+                        $model->AttributesUuidValue->$virtualModel = ClassRegistry::init($virtualModel);
+                        $model->AttributesUuidValue->bindModel(array('belongsTo' => Set::merge($model->AttributesUuidValue->belongsTo,$belongsTo)));
+                    }
+                }
+            }
+            if (isset($this->settings[$this->entityModel->name]['virtualKeys']['key'])) {
+                foreach ($this->settings[$this->entityModel->name]['virtualKeys']['key'] as $virtualModel) {
+                    if ($this->virtualFieldType == 'cake') {
+                           //Binds the Parent Model to Associated Models with a UUID foreignKey using a HABTM relationship
+                        $model->$virtualModel = ClassRegistry::init($virtualModel);
+                        $hasAndBelongsToMany[$virtualModel]  = array(
+                            'className' => $virtualModel,
+                            'foreignKey' => 'entity_id',
+                            'associationForeignKey' => 'value',
+                                'with' => 'AttributesKeyValue',
+                                'joinTable' => 'attributes_key_values'
+                        );
+                        $model->hasAndBelongsToMany = Set::merge($model->hasAndBelongsToMany,$hasAndBelongsToMany);
+                        
+                    } else {
+                        $belongsTo = array(
+                            $virtualModel => array(
+                                'className' => $virtualModel,
+                                'foreignKey' => 'value',
+                            )
+                        );
+                        //Binds the Parent Model to Associated Models using a hasMany and belongsTo relationship. This adds just the Associated Model record
+                        //to the AttributesUuidValue model. 
+                        $model->AttributesKeyValue->$virtualModel = ClassRegistry::init($virtualModel);
+                        $model->AttributesKeyValue->bindModel(array('belongsTo' => Set::merge($model->AttributesKeyValue->belongsTo,$belongsTo)));
+                    }
+                }
+            }
+            if ($this->virtualFieldType == 'cake') {
+                //Set model virtual fields.
+                $model->virtualFields = array_merge($model->virtualFields,$this->_getVirtualFieldSql($model));
+            }
+        }
+    }
+    
+    /**
+     * Test method to setup test data.
+     * 
+     */
+    function setupAttributes() {
+        $entityId = '4e656b03-8b70-4c3b-a8d0-057c43c9e587';
+        $this->addAttributeValue('address','123 Main St.',$entityId);
+        $this->addAttributeValue('city','San Rafael',$entityId);
+        $this->addAttributeValue('zip','94901',$entityId);
+        $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
+        $this->addAttributeValue('notes','This is a note',$entityId);
+        $this->addAttributeValue('admin',1,$entityId);
+        $entityId = '4e656b23-cef8-4f46-ad8e-057d43c9e587';
+        $this->addAttributeValue('address','456 Main St.',$entityId);
+        $this->addAttributeValue('city','San Mateo',$entityId);
+        $this->addAttributeValue('zip','94951',$entityId);
+        $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
+        $this->addAttributeValue('notes','This is another note',$entityId);
+        $this->addAttributeValue('admin',0,$entityId);
         $entityId = '4e659ab2-1a3c-43a3-96fb-076043c9e587';
-	    $this->addAttributeValue('address','123 Main St.',$entityId);
-	    $this->addAttributeValue('city','San Rafael',$entityId);
-	    $this->addAttributeValue('zip','94901',$entityId);
-	    $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
-	    $this->addAttributeValue('notes','This is a company note',$entityId);
-	    $this->addAttributeValue('opens_at',date('H:i:s'),$entityId);
-	    $this->addAttributeValue('closes_at',date('H:i:s'),$entityId);
-	    $entityId = '4e659af9-c210-43ed-824b-076843c9e587';
-	    $this->addAttributeValue('address','789 Main St.',$entityId);
-	    $this->addAttributeValue('city','San Francisco',$entityId);
-	    $this->addAttributeValue('zip','94942',$entityId);
-	    $this->addAttributeValue('rate',75.00,$entityId);
-	    $this->addAttributeValue('notes','This is contact note',$entityId);
-	    $this->addAttributeValue('company_id','4e659ab2-1a3c-43a3-96fb-076043c9e587',$entityId);	    
-	}
-	function addAttributeValue($attribute,$value,$entityId = null) {
-	    $attribute = ClassRegistry::init($this->attributeModel)->findByName($attribute);
-	    $alias = $this->valueModels[$attribute['Attribute']['data_type']];
-	    $table = Inflector::pluralize(Inflector::underscore($alias));
-	    $valueModel = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
-	    $valueModel->create();
-	    $valueModel->save(
-	        array($alias => array(
-	            'entity_id' => $entityId,
-	            'attribute_id' => $attribute['Attribute']['id'],
-	            'value' => $value)));
-	    
-	}
-	/**
-	 * Gets the Virtual Fields for a given model and returns the array of fields
-	 * @param $model
-	 */
-	function getVirtualFieldsByModel($model = null) {
-	    $this->Attribute = ClassRegistry::init($this->attributeModel);
-		if (!empty($model)) {
-			$fields = $this->Attribute->find('all',array(
-			'fields' => array('id','name','data_type'),
-			)
-		);
-		
-		return $fields;
-		} else {
-			return false;
-		}
-	}
+        $this->addAttributeValue('address','123 Main St.',$entityId);
+        $this->addAttributeValue('city','San Rafael',$entityId);
+        $this->addAttributeValue('zip','94901',$entityId);
+        $this->addAttributeValue('birth_date',date('Y-m-d'),$entityId);
+        $this->addAttributeValue('notes','This is a company note',$entityId);
+        $this->addAttributeValue('opens_at',date('H:i:s'),$entityId);
+        $this->addAttributeValue('closes_at',date('H:i:s'),$entityId);
+        $entityId = '4e659af9-c210-43ed-824b-076843c9e587';
+        $this->addAttributeValue('address','789 Main St.',$entityId);
+        $this->addAttributeValue('city','San Francisco',$entityId);
+        $this->addAttributeValue('zip','94942',$entityId);
+        $this->addAttributeValue('rate',75.00,$entityId);
+        $this->addAttributeValue('notes','This is contact note',$entityId);
+        $this->addAttributeValue('company_id','4e659ab2-1a3c-43a3-96fb-076043c9e587',$entityId);        
+    }
+    
+    /**
+     * Adds an attribute value to an entity.
+     * 
+     * @param unknown_type $attribute The name of the attribute to add
+     * @param unknown_type $value The value of the attribute
+     * @param unknown_type $entityId The id of the entity the attribute should be added to.
+     */
+    function addAttributeValue($attribute,$value,$entityId = null) {
+        $attribute = ClassRegistry::init($this->attributeModel)->findByName($attribute);
+        $alias = $this->valueModels[$attribute['Attribute']['data_type']];
+        $table = Inflector::pluralize(Inflector::underscore($alias));
+        $valueModel = ClassRegistry::init(array('class' => 'AppModel', 'table' => $table,'alias' => $alias));
+        $valueModel->create();
+        $valueModel->save(
+            array($alias => array(
+                'entity_id' => $entityId,
+                'attribute_id' => $attribute['Attribute']['id'],
+                'value' => $value)));
+        
+    }
+    
+    /**
+     * Gets the Virtual Fields for a given model and returns the array of fields
+     * @param $model
+     */
+    private function _getVirtualFieldsByModel($model = null) {
+        $this->Attribute = ClassRegistry::init($this->attributeModel);
+        if (!empty($model)) {
+            $fields = $this->Attribute->find('all',array(
+            'fields' => array('id','name','data_type'),
+            )
+        );
+        
+        return $fields;
+        } else {
+            return false;
+        }
+    }
 
-	/**
-	 * get the SQL used as a subquery to generate Virtual Fields
-	 * @param $model
-	 */
-	function getVirtualFieldSql($model = null,$entityId = null) {
-		//debug($model);
-		if ($model != null) {
-			$fields = $this->getVirtualFieldsByModel($model);
-		//debug($fields);
-		
-			
+    /**
+     * Get the SQL used as a subquery to generate Virtual Fields
+     * @param $model
+     */
+    private function _getVirtualFieldSql($model = null,$entityId = null) {
+        if ($model != null) {
+            $fields = $this->_getVirtualFieldsByModel($model);
 
-			if (!empty($fields)) {
-			    foreach($fields as $field){
-			        $valueModel = $this->valueModels[$field['Attribute']['data_type']];
-        			$this->$valueModel = ClassRegistry::init($valueModel);
-        			$dbo = $this->$valueModel->getDataSource();
-        			$table = 'attributes_' . $field['Attribute']['data_type'] . '_values';
-        			$table = $dbo->fullTableName($this->$valueModel);
-			    if ($entityId) {
-			        $conditionsSubQuery['`' . $valueModel . '`.`entity_id`'] =  $entityId;
-			    } else {
-			        $conditionsSubQuery[] ='`' . $valueModel . '`.`entity_id` = `'.$model->alias.'`.`id`';
-			    }
-				
-        			
-			        $conditionsSubQuery['`' . $valueModel . '`.`attribute_id`'] = $field['Attribute']['id'];
-				$subQuery = $dbo->buildStatement(
-				    array(
-				        'fields' => array($valueModel . '.value'),
-				        'table' => $table,
-				        'alias' => $valueModel,
-				        'limit' => null,
-				        'offset' => null,
-				        'joins' => array(),
-				        'conditions' => $conditionsSubQuery,
-				        'order' => null,
-				        'group' => null
-				    ),
-				    $this->$valueModel
-				);
-				$subQueryExpression = $dbo->expression($subQuery);
-				$query[] = $subQueryExpression;
+            if (!empty($fields)) {
+                foreach($fields as $field){
+                    $valueModel = $this->valueModels[$field['Attribute']['data_type']];
+                    $this->$valueModel = ClassRegistry::init($valueModel);
+                    $dbo = $this->$valueModel->getDataSource();
+                    $table = 'attributes_' . $field['Attribute']['data_type'] . '_values';
+                    $table = $dbo->fullTableName($this->$valueModel);
+                if ($entityId) {
+                    $conditionsSubQuery['`' . $valueModel . '`.`entity_id`'] =  $entityId;
+                } else {
+                    $conditionsSubQuery[] ='`' . $valueModel . '`.`entity_id` = `'.$model->alias.'`.`id`';
+                }
+                
+                    
+                    $conditionsSubQuery['`' . $valueModel . '`.`attribute_id`'] = $field['Attribute']['id'];
+                $subQuery = $dbo->buildStatement(
+                    array(
+                        'fields' => array($valueModel . '.value'),
+                        'table' => $table,
+                        'alias' => $valueModel,
+                        'limit' => null,
+                        'offset' => null,
+                        'joins' => array(),
+                        'conditions' => $conditionsSubQuery,
+                        'order' => null,
+                        'group' => null
+                    ),
+                    $this->$valueModel
+                );
+                $subQueryExpression = $dbo->expression($subQuery);
+                $query[] = $subQueryExpression;
 
-				$fieldData[$field['Attribute']['name']] = $subQuery;
+                $fieldData[$field['Attribute']['name']] = $subQuery;
                 unset($conditionsSubQuery);
-			    }
-			return $fieldData;
-			}
-		}
-		return false;
+                }
+            return $fieldData;
+            }
+        }
+        return false;
 
-	}
-	
-	/**
-	 * Get all of the attributes
-	 */
+    }
+    
+    /**
+     * Get all of the attributes
+     */
     function getAttributes() {
         return $this->$attributeModel->find('all');
     }
@@ -349,9 +346,9 @@ class EavBehavior extends ModelBehavior {
      */
     function getAttributeIdByName($name) {
         return $this->$attributeModel->find('all',array(
-        	'fields' => array('id'),
-        	'conditions' => array(
-        		'name' => $name
+            'fields' => array('id'),
+            'conditions' => array(
+                'name' => $name
             )
         ));
     }
@@ -362,22 +359,12 @@ class EavBehavior extends ModelBehavior {
      * @param unknown_type $entityId
      */
     function getAttributeValues(&$Model,$entity) {
-        //debug($Model);
-        /*if ($entityId == null) {
-            $entityId = $this->entityModel->id;
-        }*/
-        //debug($Model->name);
-        //$entity = $Model->findById($entityId);
-        //debug($entity);
-	    foreach($this->valueModels as $dataType => $dataModel) {
-	        //debug($dataModel);
-	        //debug($entity[$dataModel]);
-	        foreach($entity[$dataModel] as $attributeData) {
-	        //debug($attributeData);
-	        $attributes[$attributeData['Attribute']['name']] = $attributeData['value'];
-	        }
-	    }
-	    return $attributes;
+        foreach($this->valueModels as $dataType => $dataModel) {
+            foreach($entity[$dataModel] as $attributeData) {
+            $attributes[$attributeData['Attribute']['name']] = $attributeData['value'];
+            }
+        }
+        return $attributes;
     }
     
     /**
@@ -401,23 +388,22 @@ class EavBehavior extends ModelBehavior {
      * Bind the Entity Model to all of the Models with values in the key Model
      */
     function bindThroughAttributes() {
-            $attributes = $this->$attributeModel->findAllByType('key');
-	        foreach ($attributes as $attribute) {
-	            $model = Inflector::camelCase(substr($attribute[$attributeModel],-2));
-               $this->bindThroughAttribute($model);
-	        }
-            $attributes = $this->$attributeModel->findAllByType('uuid');
-	        foreach ($attributes as $attribute) {
-	            $model = Inflector::camelCase(substr($attribute[$attributeModel],-2));
-               $this->bindThroughAttribute($model);
-	        }
-	        
+        $attributes = $this->$attributeModel->findAllByType('key');
+        foreach ($attributes as $attribute) {
+           $model = Inflector::camelCase(substr($attribute[$attributeModel],-2));
+           $this->bindThroughAttribute($model);
+        }
+        $attributes = $this->$attributeModel->findAllByType('uuid');
+        foreach ($attributes as $attribute) {
+           $model = Inflector::camelCase(substr($attribute[$attributeModel],-2));
+           $this->bindThroughAttribute($model);
+        }
     }
     
     /**
      * 
      * Do a find and replace throughout the Attributes.
-     * @todo Update this
+     * @todo Test and update this
      * @param unknown_type $searchText
      * @param unknown_type $replaceText
      * @param unknown_type $formatType
@@ -428,162 +414,151 @@ class EavBehavior extends ModelBehavior {
     function findReplace($searchText, $replaceText, $formatType, $formatChar, $regexpChar, $attributeValuesUpdateList) {
         if (! empty($searchText)) {
             $this->updateAll(array(
-                    '`AttributeValue`.`text`' => 'REPLACE(`AttributeValue`.`text`,"' . addslashes(htmlentities($searchText, ENT_NOQUOTES, 'UTF-8')) . '","' . addslashes(htmlentities($replaceText, ENT_NOQUOTES, 'UTF-8')) . '")'
+                    '`AttributesTextValue`.`value`' => 'REPLACE(`AttributesTextValue`.`value`,"' . addslashes(htmlentities($searchText, ENT_NOQUOTES, 'UTF-8')) . '","' . addslashes(htmlentities($replaceText, ENT_NOQUOTES, 'UTF-8')) . '")'
             ), array(
-                    'AttributeValue.id IN("' . $attributeValuesUpdateList . '")'
+                    'AttributesTextValue.id IN("' . $attributeValuesUpdateList . '")'
             ));
         } elseif ($formatType == 'currency') {
             //Do the Currency Format update
-            
-
             $this->updateAll(array(
-                    '`AttributeValue`.`text`' => 'IF( `AttributeValue`.`text` REGEXP BINARY "^[^0-9a-zA-Z][0-9]+\.[0-9]+$", CONCAT( "' . $formatChar . '", FORMAT( RIGHT( `AttributeValue`.`text` , (CHAR_LENGTH( `AttributeValue`.`text` ) -1 ) ) , 2 ) ) , IF( `AttributeValue`.`text` REGEXP BINARY "^[0-9]+\.*[0-9]*$", CONCAT( "' . $formatChar . '", FORMAT( `AttributeValue`.`text` , 2 ) ),`AttributeValue`.`text`))'
+                    '`AttributesTextValue`.`value`' => 'IF( `AttributesTextValue`.`value` REGEXP BINARY "^[^0-9a-zA-Z][0-9]+\.[0-9]+$", CONCAT( "' . $formatChar . '", FORMAT( RIGHT( `AttributesTextValue`.`value` , (CHAR_LENGTH( `AttributesTextValue`.`value` ) -1 ) ) , 2 ) ) , IF( `AttributesTextValue`.`value` REGEXP BINARY "^[0-9]+\.*[0-9]*$", CONCAT( "' . $formatChar . '", FORMAT( `AttributesTextValue`.`value` , 2 ) ),`AttributesTextValue`.`value`))'
             ), array(
-                    '`AttributeValue`.`text` NOT REGEXP BINARY "^[' . $regexpChar . '][0-9]*[\.][0-9]{2}$"', 
-                    'AttributeValue.id IN("' . $attributeValuesUpdateList . '")'
-            ));
-        
-     //echo "Affected Rows:" . $this->AttributeValue->getAffectedRows();
-        
-
-        } elseif ($formatType == 'pricecode') {
-            //Do the PriceCode Format update
-            
-
-            $this->updateAll(array(
-                    '`AttributeValue`.`text`' => 'if( ASCII( left( `AttributeValue`.`text`, 1 ) ) >64, if( ASCII( right( `AttributeValue`.`text`, 1 ) ) >64, concat( "' . $formatChar . '", left( right(`AttributeValue`.`text`, char_length( `AttributeValue`.`text` ) -1 ) , char_length( right( `AttributeValue`.`text`, char_length( `AttributeValue`.`text` ) -1 ) ) -1 ) , "' . $formatChar . '") , concat( "' . $formatChar . '", right( `AttributeValue`.`text`, char_length( `AttributeValue`.`text` ) -1 ), "' . $formatChar . '")  ) , if( ASCII( right( `AttributeValue`.`text`, 1 ) ) >64, concat( "' . $formatChar . '",left( `AttributeValue`.`text`, char_length( `AttributeValue`.`text` ) -1 ) , "' . $formatChar . '"), concat( "' . $formatChar . '", `AttributeValue`.`text`, "' . $formatChar . '") )  )'
-            ), array(
-                    '`AttributeValue`.`text` NOT REGEXP "^([A-Za-z])[0-9]*\1$"', 
-                    'AttributeValue.id IN("' . $attributeValuesUpdateList . '")'
+                    '`AttributesTextValue`.`value` NOT REGEXP BINARY "^[' . $regexpChar . '][0-9]*[\.][0-9]{2}$"', 
+                    'AttributesTextValue.id IN("' . $attributeValuesUpdateList . '")'
             ));
         }
         return $this->getAffectedRows();
-    
     }
-	/**
-	 * Finds an AttributeValue record by a given AttributeValueId and returns the value of the text field.
-	 *
-	 * @param string $attributeValueId The id of a AttributeValue record.
-	 * @return string $content The value of the text field to return.
-	 */
-	function getValuesByAttributeId($attributeValueId, $dataType = null) {
-	    if ($dataType != null) {
-	        //Query each Attribute Value Model for the given id. If found return the value.
-	        foreach ($this->valueModels as $dataType => $dataModel) {
-	            $value = $this->$dataModel->field('value',array('id' => $attributeValueId));
-	            if (isset($value)) {
-	                return $value;
-	            }
-	        }
-	        return false;
-	    } else {
-	        //Find the value from the given $dataType
-	        $dataModel = $this->valueModels[$dataType];
-    		$value = $this->$dataModel->field('value',array('id' => $attributeValueId));
-    		return $value;
-	        
-	    }
-	    return false;
-	}
+    
+    /**
+     * Finds an AttributeValue record by a given AttributeValueId and returns the value of the text field.
+     *
+     * @param string $attributeValueId The id of a AttributeValue record.
+     * @return string $content The value of the text field to return.
+     */
+    function getValuesByAttributeId($attributeValueId, $dataType = null) {
+        if ($dataType != null) {
+            //Query each Attribute Value Model for the given id. If found return the value.
+            foreach ($this->valueModels as $dataType => $dataModel) {
+                $value = $this->$dataModel->field('value',array('id' => $attributeValueId));
+                if (isset($value)) {
+                    return $value;
+                }
+            }
+            return false;
+        } else {
+            //Find the value from the given $dataType
+            $dataModel = $this->valueModels[$dataType];
+            $value = $this->$dataModel->field('value',array('id' => $attributeValueId));
+            return $value;
+            
+        }
+        return false;
+    }
 
-		/**
-	 * Finds an AttributeValue record by a given AttributeValueId and returns the value of the text field.
-	 *
-	 * @param string $attributeValueId The id of a AttributeValue record.
-	 * @return string $content The value of the text field to return.
-	 */
-	function getValuesByEntityId($entityId = null) {
-	    if ($entityId == null) {
-	        $entityId = $this->$entityModel->id;
-	    }
-	    
-	    if ($entityId == null) {
-	        return false;
-	    } else {
-	        //Query each Attribute Value Model for the given id. If found return the value.
-	        foreach ($this->valueModels as $dataType => $dataModel) {
-	            $values = $this->$dataModel->find('all',array($entityModel . '.id' => $entityId));
-	            foreach ($values as $key => $value) {
-	                $result['AttributeValue'][$value[$attributeModel]['name']] = $value[$dataModel]['value'];
-	            }
-	        }
-	        return result;
-	    }
-	}
-	
-	/**
-	 * Finds all of the AttributeValue records with the given AttributeTypeId.
-	 *
-	 * @param string $attributeTypeId The uuid of an AttributeType
-	 * @return array The model array of AttributeValue records for the given AttributeType
-	 */
-	function getAllByType($type) {
-	    $dataModel = $this->valueModels[$type];
-		return $this->$dataModel->find('all');
-	}
-	
+        /**
+     * Finds the Attribute Values for a given Entity Id. Returns an array of Attributes in a key => value pair array
+     *
+     * @param string $attributeValueId The id of a AttributeValue record.
+     * @return string $content The value of the text field to return.
+     */
+    function getValuesByEntityId($entityId = null) {
+        if ($entityId == null) {
+            $entityId = $this->$entityModel->id;
+        }
+        
+        if ($entityId == null) {
+            return false;
+        } else {
+            //Query each Attribute Value Model for the given id. If found return the value.
+            foreach ($this->valueModels as $dataType => $dataModel) {
+                $values = $this->$dataModel->find('all',array($entityModel . '.id' => $entityId));
+                foreach ($values as $key => $value) {
+                    $result['AttributeValue'][$value[$attributeModel]['name']] = $value[$dataModel]['value'];
+                }
+            }
+            return result;
+        }
+    }
+    
+    /**
+     * Finds all of the AttributeValue records with the given AttributeTypeId.
+     *
+     * @param string $attributeTypeId The uuid of an AttributeType
+     * @return array The model array of AttributeValue records for the given AttributeType
+     */
+    function getAllByType($type) {
+        $dataModel = $this->valueModels[$type];
+        return $this->$dataModel->find('all');
+    }
+    
 /**
  * beforeFind Callback
  * This can be used to intercept finds by attribute fields and handle them appropriately
  *
- * @param object $Model	Model using the behavior
+ * @param object $Model    Model using the behavior
  * @param array $query Query parameters as set by cake
  * @return array
  * @access public
  */
-	function beforeFind(&$Model, $query) {
+    function beforeFind(&$Model, $query) {
+        //Depending on the the virtualFieldType
     }
 
 /**
  * afterFind Callback 
- * This can be used to add the attributes and values to the entity array
+ * Manipulates the results returned from a find. This handles the Array and EAV options of the $virtualFieldType option. For the Array type, 
+ * the Attribute Values are returned in a in a Attributes array. For the EAV type, the attributes are merged with the model array. In both cases,
+ * the Attbribute Arrays are removed.
  *
- * @param object $Model	Model using the behavior
- * @param array $query Query parameters as set by cake
+ * @param object $Model    Model using the behavior
+ * @param array $results The results of the find to manipulate.
  * @return array Returns the modified results
  * @access public
  */
-	function afterFind(&$Model, $results) {
-	            //debug($this->type);
-	    if ($this->virtualFieldType == 'array' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
-	        foreach($results as $key=>$value) {
-	            foreach($this->valueModels as $dataType => $dataModel) {
-        	        foreach($value[$dataModel] as $attributeData) {
-        	            $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
-        	            
-        	        }
-    	        }
-	                $model = $results[$key][$Model->name];
-	                $attributes = $results[$key]['Attributes'];
-        	        unset($results[$key]);
-        	        $results[$key][$Model->name] = $model;
-        	        $results[$key]['Attributes'] =$attributes;
-	        }
-	    }
-	    if ($this->virtualFieldType == 'eav' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
-	        foreach($results as $key=>$value) {
-	            foreach($this->valueModels as $dataType => $dataModel) {
-        	        foreach($value[$dataModel] as $attributeData) {
-        	            $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
-        	            
-        	        }
-    	        }
-	                $model = $results[$key][$Model->name];
-	                $attributes = $results[$key]['Attributes'];
-        	        unset($results[$key]);
-        	        $results[$key][$Model->name] = Set::merge($model,$attributes);
-        	        //$results[$key]['Attributes'] =$attributes;
-	        }
-	        //$Model->$Model->name = Set::merge($Model->$Model->name,$this->getAttributeValues($results['Contact']['id']));
-	        //debug($Model);
-	        //debug($results);
-	        //debug();
-	        
-	    }
-	    //debug($return);
-	    
-	    return $results;
-	}
+    function afterFind(&$Model, $results) {
+                //debug($this->type);
+        if ($this->virtualFieldType == 'array' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
+            foreach($results as $key=>$value) {
+                foreach($this->valueModels as $dataType => $dataModel) {
+                    foreach($value[$dataModel] as $attributeData) {
+                        $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
+                        Set::remove($results[$key],$dataModel);
+                    }
+                }
+                    /*
+                     $model = $results[$key][$Model->name];
+                    $attributes = $results[$key]['Attributes'];
+                    unset($results[$key]);
+                    $results[$key][$Model->name] = $model;
+                    $results[$key]['Attributes'] = $attributes;
+                    */
+            }
+        }
+        if ($this->virtualFieldType == 'eav' && (key_exists('AttributesKeyValue',$results[0])) && ($this->type == 'entity')) {
+            foreach($results as $key=>$value) {
+                foreach($this->valueModels as $dataType => $dataModel) {
+                    foreach($value[$dataModel] as $attributeData) {
+                        $results[$key]['Attributes'][$attributeData['Attribute']['name']] = $attributeData['value'];
+                        
+                    }
+                }
+                    $model = $results[$key][$Model->name];
+                    $attributes = $results[$key]['Attributes'];
+                    unset($results[$key]);
+                    $results[$key][$Model->name] = Set::merge($model,$attributes);
+                    //$results[$key]['Attributes'] =$attributes;
+            }
+            //$Model->$Model->name = Set::merge($Model->$Model->name,$this->getAttributeValues($results['Contact']['id']));
+            //debug($Model);
+            //debug($results);
+            //debug();
+            
+        }
+        //debug($return);
+        
+        return $results;
+    }
     
 /**
  * beforeSave Callback
@@ -592,8 +567,8 @@ class EavBehavior extends ModelBehavior {
  * @return void
  * @access public
  */
-	function beforeSave(&$model, $options) {
-	}
+    function beforeSave(&$model, $options) {
+    }
 /**
  * afterSave Callback
  *
@@ -601,33 +576,28 @@ class EavBehavior extends ModelBehavior {
  * @return void
  * @access public
  */
-	function afterSave(&$model, $created) {
-	}
-	
+    function afterSave(&$model, $created) {
+    }
+    
 /**
  * Sets the cascade parameter when deleting an entity so that attribute values are also deleted
  *
  * @return void
  * @access public
  */
-	function beforeDelete(&$model) {
-		$type = $this->__typeMaps[$this->settings[$model->name]['type']];
-		$node = Set::extract($this->node($model), "0.{$type}.id");
-		if (!empty($node)) {
-			$model->{$type}->delete($node);
-		}
-	}
+    function beforeDelete(&$model) {
+    }
 /**
  * Deletes Attribute Values when the entity is deleted
  *
  * @return void
  * @access public
  */
-	function afterDelete(&$model) {
-		$type = $this->__typeMaps[$this->settings[$model->name]['type']];
-		$node = Set::extract($this->node($model), "0.{$type}.id");
-		if (!empty($node)) {
-			$model->{$type}->delete($node);
-		}
-	}
+    function afterDelete(&$model) {
+        $type = $this->__typeMaps[$this->settings[$model->name]['type']];
+        $node = Set::extract($this->node($model), "0.{$type}.id");
+        if (!empty($node)) {
+            $model->{$type}->delete($node);
+        }
+    }
 }
