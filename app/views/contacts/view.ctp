@@ -1,21 +1,36 @@
 <div class="contacts view">
 <h2><?php  __('Contact');?></h2>
 	<dl><?php $i = 0; $class = ' class="altrow"';?>
-		<dt<?php if ($i % 2 == 0) echo $class;?>><?php __('Id'); ?></dt>
-		<dd<?php if ($i++ % 2 == 0) echo $class;?>>
-			<?php echo $contact['Contact']['id']; ?>
-			&nbsp;
-		</dd>
-		<dt<?php if ($i % 2 == 0) echo $class;?>><?php __('Created'); ?></dt>
-		<dd<?php if ($i++ % 2 == 0) echo $class;?>>
-			<?php echo $contact['Contact']['created']; ?>
-			&nbsp;
-		</dd>
-		<dt<?php if ($i % 2 == 0) echo $class;?>><?php __('Modified'); ?></dt>
-		<dd<?php if ($i++ % 2 == 0) echo $class;?>>
-			<?php echo $contact['Contact']['modified']; ?>
-			&nbsp;
-		</dd>
+    <?php  
+                        //debug($contact);
+            foreach ( $contact['Contact'] as $field => $value) :
+            if (!is_array($value)) {
+                $idField = false;
+            if (substr($field,-3) == '_id') {
+                $idField = true;
+                $fieldName = Inflector::camelize(substr($field,0,strpos($field,'_id')));
+            } else {
+                $fieldName = Inflector::camelize($field);
+            }
+            ?>
+        <dt<?php if ($i % 2 == 0) echo $class;?>><?php __($fieldName); ?></dt>
+        <dd<?php if ($i++ % 2 == 0) echo $class;?>>
+            <?php if ($idField == true) {
+                        //debug($contact['Contact'][$fieldName]['name']);
+                        echo $this->Html->link($contact['Contact'][$fieldName]['name'],array(
+                            'controller' =>Inflector::underscore(Inflector::pluralize($fieldName)),
+                            'action' => 'view',
+                            $contact['Contact'][$field]));
+                  } else {
+                        echo $contact['Contact'][$field]; 
+                  }
+            ?>
+            &nbsp;
+        </dd>
+     <?php  
+            }
+           endforeach;
+     ?>
 	</dl>
 </div>
 <div class="actions">

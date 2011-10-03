@@ -5,7 +5,7 @@ class UsersController extends AppController {
 	var $scaffold;
 	
 	function index() {
-	    $this->User->recursive = 1;
+	    $this->User->recursive = 2;
 	    debug($this->User->find('all'));
 	    $this->set('users',$this->paginate());
 	}

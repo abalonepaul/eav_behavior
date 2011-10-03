@@ -2,9 +2,15 @@
 	<h2><?php __('Contacts');?></h2>
 	<table cellpadding="0" cellspacing="0">
 	<tr>
-			<th><?php echo $this->Paginator->sort('id');?></th>
-			<th><?php echo $this->Paginator->sort('created');?></th>
-			<th><?php echo $this->Paginator->sort('modified');?></th>
+    <?php 
+            foreach ( $contacts[0]['Contact'] as $field => $value) : 
+            if (!is_array($value)) :
+            ?>
+			<th><?php echo $this->Paginator->sort($field);?></th>
+     <?php endif; 
+           endforeach;
+     ?>
+     
 			<th class="actions"><?php __('Actions');?></th>
 	</tr>
 	<?php
@@ -15,10 +21,32 @@
 			$class = ' class="altrow"';
 		}
 	?>
-	<tr<?php echo $class;?>>
-		<td><?php echo $contact['Contact']['id']; ?>&nbsp;</td>
-		<td><?php echo $contact['Contact']['created']; ?>&nbsp;</td>
-		<td><?php echo $contact['Contact']['modified']; ?>&nbsp;</td>
+    <tr<?php echo $class;?>>
+    <?php
+            //debug($contact);
+            foreach ( $contact['Contact'] as $field => $value) : 
+            //debug($value);
+            if (!is_array($value)) :
+                $idField = false;
+            if (substr($field,-3) == '_id') {
+                $idField = true;
+                $fieldName = Inflector::camelize(substr($field,0,strpos($field,'_id')));
+            } else {
+                $fieldName = Inflector::camelize($field);
+            }
+            ?>
+            <td><?php if ($idField == true) {
+                        //debug($contact['Contact'][$fieldName]['name']);
+                        echo $this->Html->link($contact['Contact'][$fieldName]['name'],array(
+                            'controller' =>Inflector::underscore(Inflector::pluralize($fieldName)),
+                            'action' => 'view',
+                            $contact['Contact'][$field]));
+                  } else {
+                        echo $contact['Contact'][$field]; 
+                  } ?></td>
+     <?php endif;
+            endforeach; 
+?>
 		<td class="actions">
 			<?php echo $this->Html->link(__('View', true), array('action' => 'view', $contact['Contact']['id'])); ?>
 			<?php echo $this->Html->link(__('Edit', true), array('action' => 'edit', $contact['Contact']['id'])); ?>
