@@ -56,4 +56,8 @@ class ContactsController extends AppController {
 	    $this->set('companies',$companies);
 	}
 	
+	function find_replace() {
+	    debug($this->Contact->findReplace('Mateo','Carlos',null));
+	    
+	}
 }
