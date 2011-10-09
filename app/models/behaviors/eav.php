@@ -1,6 +1,6 @@
 <?php
 /**
- * EAV behavior class.
+ * EAV Behavior
  *
  * Enables objects to utilize the Entity-Attribute-Value design pattern and act as an entity, attribute, or attribute_value.
  *
@@ -18,9 +18,8 @@
  * @subpackage    model.behaviors.eav
  * @license       MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-
 /**
- * 
+ * Eav Behavior Class
  *
  * @package       eav
  * @subpackage    model.behaviors.eav
@@ -360,6 +359,51 @@ class EavBehavior extends ModelBehavior {
         return false;
     
     }
+    private function _getVirtualFieldConditionSql($model = null, $attributeName,$condition) {
+        
+                    $attribute = ClassRegistry::init($this->attributeModel)->find('first',array('conditions' => array('name' => $attributeName)));
+                    $valueModel = $this->valueModels[$attribute['Attribute']['data_type']];
+                    $this->$valueModel = ClassRegistry::init($valueModel);
+                    $dbo = $this->$valueModel->getDataSource();
+                    $table = 'attributes_' . $attribute['Attribute']['data_type'] . '_values';
+                    $table = $dbo->fullTableName($this->$valueModel);
+                    $conditionsSubQuery[] = '`' . $valueModel . '`.`entity_id` = `' . $model->alias . '`.`id`';
+                    
+                    $conditionsSubQuery['`' . $valueModel . '`.`attribute_id`'] = $attribute['Attribute']['id'];
+                    foreach($condition as $key => $value)  {
+                        //$newKey = str_replace($attributeName,'value',$key);
+                        //$newKey = str_replace($model->name,$valueModel,$newKey);
+                        $condition['value'] = $value;
+                        $condition = Set::remove($condition,$key);
+                        //$conditionsSubQuery[$newKey] = $value;
+                        $conditionsSubQuery = Set::merge($conditionsSubQuery,$condition);
+                    //debug($conditionsSubQuery);
+                    }    
+                    
+                    $subQuery = $dbo->buildStatement(array(
+                            'fields' => array(
+                                    $valueModel . '.entity_id'
+                            ), 
+                            'table' => $table, 
+                            'alias' => $valueModel, 
+                            'limit' => null, 
+                            'offset' => null, 
+                            'joins' => array(), 
+                            'conditions' => $conditionsSubQuery, 
+                            'order' => null, 
+                            'group' => null
+                    ), $this->$valueModel);
+                    $subQueryExpression = $dbo->expression($subQuery);
+                    $query[] = $subQueryExpression;
+                    
+                    $fieldData[$attribute['Attribute']['name']] = $subQuery;
+                    unset($conditionsSubQuery);
+                    //debug($subQuery);
+                    //debug($fieldData);
+                    return $subQuery;
+                    
+    
+    }
     
     /**
      * Get all of the attributes
@@ -539,7 +583,88 @@ class EavBehavior extends ModelBehavior {
         $dataModel = $this->valueModels[$type];
         return $this->$dataModel->find('all');
     }
+
+    private function _extractField(&$Model,$key, $value) {
+		$db =& ConnectionManager::getDataSource($Model->useDbConfig);
+        $operatorMatch = '/^((' . implode(')|(', $db->__sqlOps);
+    		$operatorMatch .= '\\x20)|<[>=]?(?![^>]+>)\\x20?|[>=!]{1,3}(?!<)\\x20?)/is';
+    		$bound = (strpos($key, '?') !== false || (is_array($value) && strpos($key, ':') !== false));
     
+    		if (!strpos($key, ' ')) {
+    			$operator = '=';
+    		} else {
+    			list($key, $operator) = explode(' ', trim($key), 2);
+    
+    			if (!preg_match($operatorMatch, trim($operator)) && strpos($operator, ' ') !== false) {
+    				$key = $key . ' ' . $operator;
+    				$split = strrpos($key, ' ');
+    				$operator = substr($key, $split);
+    				$key = substr($key, 0, $split);
+    			}
+    		}
+    
+    		$type = (is_object($Model) ? $Model->getColumnType($key) : null);
+    
+    		$null = ($value === null || (is_array($value) && empty($value)));
+    
+    		if (strtolower($operator) === 'not') {
+    			$data = $db->conditionKeysToString(
+    				array($operator => array($key => $value)), true, $Model
+    			);
+    			return $data[0];
+    		}
+    
+    		$value = $db->value($value, $type);
+    		if ($bound) {
+    		$keyArray = explode('.',str_replace('`', '', $key));
+        		if (isset($keyArray[1])) {
+        		    return $keyArray[1];
+        		} else {
+        		    return $keyArray[0];
+        		}
+            }
+    		
+    		if ($key !== '?') {
+    			$isKey = (strpos($key, '(') !== false || strpos($key, ')') !== false);
+    			$key = $isKey ? $db->__quoteFields($key) : $db->name($key);
+    		}
+        
+    		if (!preg_match($operatorMatch, trim($operator))) {
+    			$operator .= ' =';
+    		}
+    		$operator = trim($operator);
+    
+    		if (is_array($value)) {
+    			$value = implode(', ', $value);
+    
+    			switch ($operator) {
+    				case '=':
+    					$operator = 'IN';
+    				break;
+    				case '!=':
+    				case '<>':
+    					$operator = 'NOT IN';
+    				break;
+    			}
+    			$value = "({$value})";
+    		} elseif ($null) {
+    			switch ($operator) {
+    				case '=':
+    					$operator = 'IS';
+    				break;
+    				case '!=':
+    				case '<>':
+    					$operator = 'IS NOT';
+    				break;
+    			}
+    		}
+    		$keyArray = explode('.',str_replace('`', '', $key));
+    		if (isset($keyArray[1])) {
+    		    return $keyArray[1];
+    		} else {
+    		    return $keyArray[0];
+    		}
+        }
     /**
      * beforeFind Callback
      * This can be used to intercept finds by attribute fields and handle them appropriately
@@ -554,8 +679,25 @@ class EavBehavior extends ModelBehavior {
         if ($Model->recursive < 2) {
             $Model->recursive = 2;
         };
+        //debug($query);
+        if ($this->settings[$Model->name]['type'] == 'entity') {
+            if ( $this->virtualFieldType == 'eav') {
+                foreach($query['conditions'] as $key => $value) {
+                    $field = $this->_extractField(&$Model, $key, $value); 
+                    $attribute = ClassRegistry::init($this->attributeModel)->find('first',array('conditions' => array('name' => $field)));
+            		if (!empty($attribute)) {
+            		    $valueModel = $this->valueModels[$attribute['Attribute']['data_type']];
+                        $virtualSql = $this->_getVirtualFieldSql($Model);
+                        $query['conditions'] = Set::merge($query['conditions'],$Model->name . '.id IN (' . $this->_getVirtualFieldConditionSql($Model,$attribute['Attribute']['name'], array($key => $value)) . ')');
+            		    $query = Set::remove($query,'conditions.' . $key);
+            		}
+                }
+                
+            }
+        }
+                //Add logic to trap conditions on virtualFields
+        return $query;
         
-        //Add logic to trap conditions on virtualFields
     }
     
     /**
@@ -590,7 +732,7 @@ class EavBehavior extends ModelBehavior {
                 }
             }
         }
-        if ($this->virtualFieldType == 'eav' && (key_exists('AttributesKeyValue', $results[0])) && ($this->type == 'entity')) {
+        if ($this->virtualFieldType == 'eav' && (isset($results[0])) && (key_exists('AttributesKeyValue', $results[0])) && ($this->type == 'entity')) {
             foreach ($results as $key => $value) {
                 foreach ($this->valueModels as $dataType => $dataModel) {
                     foreach ($value[$dataModel] as $attributeData) {

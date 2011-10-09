@@ -11,7 +11,13 @@ class ContactsController extends AppController {
 	function view($id = null) {
 	    $this->Contact->recursive = 2;
 	    $contact = $this->Contact->findById($id,array('contain' => false));
-	    //debug($contact);
+	    //debug($this->Contact->find('all', array(
+	    //    'conditions' => array('city' => 'San Rafael'))));
+	    //$contact = $this->Contact->find('first', array(
+	    //    'conditions' => array('city' => 'San Rafael')));
+	    //$contact = $this->Contact->find('first', array(
+	    //    'conditions' => array('Attribute.city' => 'San Rafael')));
+	    debug($contact);
 	    $this->set('contact',$contact);
 	}
 	function edit($id = null) {
