@@ -17,6 +17,9 @@
         <dd<?php if ($i++ % 2 == 0) echo $class;?>>
             <?php if ($idField == true) {
                         //debug($contact['Contact'][$fieldName]['name']);
+                        if (isset($contact[$fieldName][0]['name'])) {
+                            $contact['Contact'][$fieldName]['name'] = $contact[$fieldName][0]['name'];
+                        }
                         echo $this->Html->link($contact['Contact'][$fieldName]['name'],array(
                             'controller' =>Inflector::underscore(Inflector::pluralize($fieldName)),
                             'action' => 'view',
