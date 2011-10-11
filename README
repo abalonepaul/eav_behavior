@@ -1,28 +1,20 @@
-CakePHP is a rapid development framework for PHP which uses commonly known design patterns like Active Record, Association Data Mapping, Front Controller and MVC. Our primary goal is to provide a structured framework that enables PHP users at all levels to rapidly develop robust web applications, without any loss to flexibility.
+EAV Behavior for Cake PHP
 
-The Cake Software Foundation - promoting development related to CakePHP
-http://cakefoundation.org/
+The EAV Behavior contains logic to implement the Entity, Attribute, Value design pattern in CakePHP.
 
-CakePHP - the rapid development PHP framework
-http://www.cakephp.org
+FEATURES
 
-Cookbook - user documentation for learning about CakePHP
-http://book.cakephp.org
+* 12 Attribute Value tables for 10 different data types and two different foreign key types.
+* Simulate foreign key field with UUID and integer based virtual keys.
+* Dynamic Models for Attribute Value tables. 
+* Supports 3 field virtualization including CakePHP's virtualFields.
+* Find and Replace content in text or string data tables.
+* Support multiple entities using UUIDs.
+* Detaching and reattaching the Behavior can be used to provide different results sets depending on the type of query.
 
-API - quick reference to CakePHP
-http://api.cakephp.org
+INSTALLATION
 
-The Bakery - everything CakePHP
-http://bakery.cakephp.org
-
-The Show - live and archived podcasts about CakePHP and more
-http://live.cakephp.org
-
-CakePHP TV - screen casts from events and video tutorials
-http://tv.cakephp.org
-
-CakePHP Google Group - community mailing list and forum
-http://groups.google.com/group/cake-php
-
-#cakephp on irc.freenode.net - chat with CakePHP developers
-irc://irc.freenode.net/cakephp
+1. Add the SQL to your database to add the Attribute Value tables.
+2. Create an attributes table and corresponding Model. The attributes tables needs a "name" field and a "data_type"
+3. Attach the behavior to a model that should act as the Entity
+4. Configure the Behavior directly or in the model where the Behavior has been attached.
