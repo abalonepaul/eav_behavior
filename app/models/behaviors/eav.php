@@ -705,17 +705,25 @@ class EavBehavior extends ModelBehavior {
      */
     function afterSave(&$model, $created) {
         $data = $model->data;
-        $entity_id = $data['Contact']['id'];
+        $entityId = $data[$model->name]['id'];
         foreach ($data[$model->name] as $field => $value) {
             if ($model->isVirtualField($field) || $this->getAttributeIdByName($field)) {
                 $attribute = ClassRegistry::init($this->attributeModel)->findByName($field);
-                $dataModel = $this->valueModels[$attribute['Attribute']['data_type']];
+                $dataModel = $this->valueModels[$attribute[$this->attributeModel]['data_type']];
                 $model->$dataModel->create();
                 $data = array(
                         'entity_id' => $entity_id, 
                         'attribute_id' => $attribute['Attribute']['id'], 
                         'value' => $value
                 );
+                if (!$created) {
+                    $fieldData = $model->$dataModel->find('first', array('conditions' => array(
+                        'entity_id' => $entityId, 'attribute_id' => $attribute['Attribute']['id']
+                    )));
+                    if (!empty($fieldData)) {
+                        $model->$dataModel->id = $fieldData[$dataModel]['id'];
+                    }
+                }
                 $model->$dataModel->save($data);
             }
         }

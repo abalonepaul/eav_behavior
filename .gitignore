@@ -1,5 +1,4 @@
-/app/config
-/app/tmp
+/app/config/default.php
 /plugins
 /vendors
 /.buildpath
